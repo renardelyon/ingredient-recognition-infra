@@ -163,6 +163,35 @@ resource "aws_lambda_function" "container_lambda" {
   }
 }
 
+data "aws_iam_policy_document" "rekognition_lifecycle_access" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "rekognition:DescribeProjectVersions",
+      "rekognition:StopProjectVersion"
+    ]
+
+    resources = [
+      # The Project itself
+      "arn:aws:rekognition:us-east-1:733335421500:project/ingredients-recognition/*",
+      # Specific versions within the project
+      "arn:aws:rekognition:us-east-1:733335421500:project/ingredients-recognition/version/*/*"
+    ]
+  }
+}
+
+resource "aws_iam_policy" "rekognition_lifecycle_policy" {
+  name        = "RekognitionModelManagement"
+  description = "Allows Lambda to stop, and check Rekognition model status"
+  policy      = data.aws_iam_policy_document.rekognition_lifecycle_access.json
+}
+
+# Attach this to your existing role
+resource "aws_iam_role_policy_attachment" "attach_rekognition_management" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = aws_iam_policy.rekognition_lifecycle_policy.arn
+}
+
 
 # Outputs
 output "ecr_repository_url" {
