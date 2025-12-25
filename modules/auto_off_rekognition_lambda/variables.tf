@@ -10,3 +10,13 @@ variable "github_repo" {
   description = "GitHub repository in format owner/repo"
   default     = "renardelyon/rekognition-lambda"
 }
+
+variable "model_arn" {
+  type      = string
+  sensitive = true
+}
+
+variable "project_arn" {
+  type      = string
+  sensitive = true
+}

@@ -192,6 +192,40 @@ resource "aws_iam_role_policy_attachment" "attach_rekognition_management" {
   policy_arn = aws_iam_policy.rekognition_lifecycle_policy.arn
 }
 
+# 1. Define the EventBridge Rule (e.g., runs every 5 minutes)
+resource "aws_cloudwatch_event_rule" "lambda_schedule" {
+  name                = "ingredients-recognition-trigger"
+  description         = "Triggers the recognition Lambda on a schedule"
+  schedule_expression = "rate(5 minutes)"
+  state               = "DISABLED" # Change to DISABLED to turn off
+}
+
+# 2. Set the Target (Point the Rule to your Lambda)
+resource "aws_cloudwatch_event_target" "trigger_lambda_target" {
+  rule      = aws_cloudwatch_event_rule.lambda_schedule.name
+  target_id = "InvokeIngredientsLambda"
+  arn       = data.aws_lambda_function.autooff_rekognition_lambda.arn
+
+  # THIS IS THE PAYLOAD
+  input = jsonencode({
+    modelArn   = var.model_arn,
+    projectArn = var.project_arn
+  })
+}
+
+# 3. Grant Permission (Allow EventBridge to call your Lambda)
+resource "aws_lambda_permission" "allow_eventbridge" {
+  statement_id  = "AllowExecutionFromEventBridge"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.container_lambda.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.lambda_schedule.arn
+}
+
+# Data
+data "aws_lambda_function" "autooff_rekognition_lambda" {
+  function_name = aws_lambda_function.container_lambda.function_name
+}
 
 # Outputs
 output "ecr_repository_url" {
