@@ -13,3 +13,9 @@ variable "app_port" {
 variable "container_port" {
   default = 8080
 }
+
+variable "github_repo" {
+  description = "GitHub repository in format owner/repo"
+  default     = "renardelyon/rekognition-lambda"
+}
+
