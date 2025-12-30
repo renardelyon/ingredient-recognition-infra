@@ -197,37 +197,7 @@ locals {
     yum install -y docker
     systemctl start docker
     systemctl enable docker
-    usermod -a -G docker ec2-user
-    
-    # Create systemd service
-    cat > /etc/systemd/system/${var.app_name}.service <<'SYSTEMD'
-    [Unit]
-    Description=Recipe Recommendation and Ingredients Recognition Service
-    After=docker.service
-    Requires=docker.service
-    
-    [Service]
-    Type=simple
-    Restart=always
-    RestartSec=10
-    User=root
-    WorkingDirectory=/opt/${var.app_name}
-    ExecStartPre=/bin/bash -c 'aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${local.ecr_url}'
-    ExecStartPre=/usr/bin/docker pull ${local.ecr_url}/${var.app_name}:latest
-    ExecStart=/usr/bin/docker run --rm --name ${var.app_name} \
-      -p ${var.app_port}:${var.container_port} \
-      -e PORT=${var.app_port} \
-      -e AWS_REGION=${var.aws_region} \
-      ${local.ecr_url}/${var.app_name}:latest
-    ExecStop=/usr/bin/docker stop ${var.app_name}
-    
-    [Install]
-    WantedBy=multi-user.target
-    SYSTEMD
-    
-    # Enable and start service
-    systemctl daemon-reload
-    systemctl enable ${var.app_name}
+
   EOF
 }
 
