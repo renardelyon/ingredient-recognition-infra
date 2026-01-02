@@ -6,6 +6,10 @@ variable "project_name" {
   default = "ingredients-recognition-app"
 }
 
+variable "service_name" {
+  default = "ingredients_recognition_backend"
+}
+
 variable "app_port" {
   default = 443
 }
@@ -16,6 +20,6 @@ variable "container_port" {
 
 variable "github_repo" {
   description = "GitHub repository in format owner/repo"
-  default     = "renardelyon/rekognition-lambda"
+  default     = "renardelyon/ingredient-recognition-backend"
 }
 
