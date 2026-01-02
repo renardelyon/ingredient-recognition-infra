@@ -17,3 +17,8 @@ output "private_ip" {
   description = "The private IP of the EC2 instance"
   value       = aws_instance.app.private_ip
 }
+
+output "ssm_document_name" {
+  description = "Name of the SSM document for deployment"
+  value       = aws_ssm_document.deploy_app.name
+}

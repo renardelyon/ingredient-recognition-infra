@@ -11,7 +11,7 @@ variable "service_name" {
 }
 
 variable "app_port" {
-  default = 443
+  default = 8080
 }
 
 variable "container_port" {
