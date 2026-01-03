@@ -83,6 +83,11 @@ module "ec2_instance" {
     create_key_pair = true
     public_key      = file("~/.ssh/id_ed25519.pub")
   }
+
+  # Nginx + Let's Encrypt
+  enable_nginx_ssl  = var.enable_nginx_ssl
+  domain_name       = var.domain_name
+  letsencrypt_email = var.letsencrypt_email
 }
 
 # OIDC Provider for GitHub Actions (use existing provider)

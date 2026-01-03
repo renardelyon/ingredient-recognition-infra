@@ -81,3 +81,21 @@ variable "instance_state" {
   type        = string
   default     = "running"
 }
+
+variable "enable_nginx_ssl" {
+  description = "Enable Nginx with Let's Encrypt SSL"
+  type        = bool
+  default     = false
+}
+
+variable "domain_name" {
+  description = "Domain name for Let's Encrypt certificate"
+  type        = string
+  default     = null
+}
+
+variable "letsencrypt_email" {
+  description = "Email for Let's Encrypt certificate"
+  type        = string
+  default     = null
+}

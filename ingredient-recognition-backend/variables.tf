@@ -23,3 +23,22 @@ variable "github_repo" {
   default     = "renardelyon/ingredient-recognition-backend"
 }
 
+# Nginx + Let's Encrypt Configuration
+variable "enable_nginx_ssl" {
+  description = "Enable Nginx with Let's Encrypt SSL"
+  type        = bool
+  default     = true
+}
+
+variable "domain_name" {
+  description = "Domain name for Let's Encrypt certificate (e.g., yourapp.duckdns.org)"
+  type        = string
+  default     = "https://recipe-recommendation-renard-elyon.duckdns.org"
+}
+
+variable "letsencrypt_email" {
+  description = "Email for Let's Encrypt certificate notifications"
+  type        = string
+  default     = "renard.elyon.r@gmail.com"
+}
+

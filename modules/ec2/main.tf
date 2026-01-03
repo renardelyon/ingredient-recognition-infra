@@ -48,6 +48,15 @@ resource "aws_vpc_security_group_ingress_rule" "http_access" {
   cidr_ipv4         = "0.0.0.0/0"
 }
 
+resource "aws_vpc_security_group_ingress_rule" "https_access" {
+  count             = var.enable_nginx_ssl ? 1 : 0
+  security_group_id = aws_security_group.ec2_security_group.id
+  from_port         = 443
+  to_port           = 443
+  ip_protocol       = "tcp"
+  cidr_ipv4         = "0.0.0.0/0"
+}
+
 resource "aws_vpc_security_group_ingress_rule" "app_access" {
   security_group_id = aws_security_group.ec2_security_group.id
   from_port         = var.aws_security_group_var.app_port
@@ -186,17 +195,72 @@ resource "aws_key_pair" "deployer" {
 locals {
   ecr_url = "${var.aws_caller_identity_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com"
 
+
   user_data = <<-EOF
     #!/bin/bash
-    set -e
     
     # Update system
-    yum update -y
+    dnf update -y
     
     # Install Docker
-    yum install -y docker
+    dnf install -y docker
     systemctl start docker
     systemctl enable docker
+
+    %{if var.enable_nginx_ssl && var.domain_name != null}
+    echo "🔧 Installing Nginx and Certbot..."
+    dnf install -y nginx certbot python3-certbot-nginx
+
+    # Configure Nginx as reverse proxy
+    cat > /etc/nginx/conf.d/app.conf << 'NGINXCONF'
+
+server {
+    listen 80;
+    server_name ${var.domain_name};
+
+    # Backend API
+    location / {
+        proxy_pass http://localhost:${var.app_port}/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 86400;
+    }
+}
+NGINXCONF
+
+    # Remove default nginx config
+    rm -f /etc/nginx/conf.d/default.conf
+
+    # Test and start Nginx
+    echo "🚀 Starting Nginx..."
+    nginx -t
+    systemctl enable nginx
+    systemctl start nginx
+
+    # Get SSL certificate with retries
+    echo "🔐 Requesting Let's Encrypt certificate..."
+    for i in 1 2 3 4 5; do
+      certbot --nginx -d ${var.domain_name} \
+        --non-interactive \
+        --agree-tos \
+        --email ${var.letsencrypt_email} \
+        --redirect && break
+      echo "Certbot attempt $i failed, waiting 30s..."
+      sleep 30
+    done
+
+    # Setup auto-renewal cron
+    echo "0 0,12 * * * root certbot renew --quiet --post-hook 'systemctl reload nginx'" > /etc/cron.d/certbot-renew
+
+    echo "✅ Nginx + SSL setup complete!"
+    %{endif}
+
+    echo "✅ EC2 setup complete!"
 
   EOF
 }
