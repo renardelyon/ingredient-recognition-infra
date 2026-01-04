@@ -90,6 +90,162 @@ module "ec2_instance" {
   letsencrypt_email = var.letsencrypt_email
 }
 
+module "ssm" {
+  source                 = "../modules/ssm"
+  ssm_attached_role_name = module.ec2_instance.ec2_role_name
+  project_name           = var.service_name
+  content = yamlencode({
+    schemaVersion = "2.2"
+    description   = "Deploy ${var.service_name} application"
+    parameters = {
+      AWSRegion = {
+        type        = "String"
+        description = "AWS Region"
+      }
+      ECRRepository = {
+        type        = "String"
+        description = "ECR Repository name"
+      }
+      AppName = {
+        type        = "String"
+        description = "Application container name"
+      }
+      ServerPort = {
+        type        = "String"
+        default     = "8080"
+        description = "Server port"
+      }
+      ServerAddress = {
+        type        = "String"
+        default     = ":8080"
+        description = "Server address"
+      }
+      RekognitionProjectArn = {
+        type        = "String"
+        description = "Rekognition project ARN"
+      }
+      RekognitionModelVersion = {
+        type        = "String"
+        description = "Rekognition model version"
+      }
+      RekognitionMinConfidence = {
+        type        = "String"
+        default     = "0.5"
+        description = "Rekognition minimum confidence"
+      }
+      JwtSecret = {
+        type        = "String"
+        description = "JWT secret"
+      }
+      JwtExpiryHours = {
+        type        = "String"
+        default     = "24"
+        description = "JWT expiry hours"
+      }
+      BedrockModelId = {
+        type        = "String"
+        description = "Bedrock model ID"
+      }
+    }
+    mainSteps = [
+      {
+        action = "aws:runShellScript"
+        name   = "deployApplication"
+        inputs = {
+          runCommand = [
+            "#!/bin/bash",
+            "set -e",
+            "",
+            "AWS_REGION='{{AWSRegion}}'",
+            "ECR_REPOSITORY='{{ECRRepository}}'",
+            "APP_NAME='{{AppName}}'",
+            "SERVER_PORT='{{ServerPort}}'",
+            "SERVER_ADDRESS='{{ServerAddress}}'",
+            "REKOGNITION_PROJECT_ARN='{{RekognitionProjectArn}}'",
+            "REKOGNITION_MODEL_VERSION='{{RekognitionModelVersion}}'",
+            "REKOGNITION_MIN_CONFIDENCE='{{RekognitionMinConfidence}}'",
+            "JWT_SECRET='{{JwtSecret}}'",
+            "JWT_EXPIRY_HOURS='{{JwtExpiryHours}}'",
+            "BEDROCK_MODEL_ID='{{BedrockModelId}}'",
+            "",
+            "ECR_URL=$(aws sts get-caller-identity --query Account --output text).dkr.ecr.$AWS_REGION.amazonaws.com",
+            "",
+            "echo '🔐 Logging in to ECR...'",
+            "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_URL",
+            "",
+            "echo '📥 Pulling latest image...'",
+            "docker pull $ECR_URL/$ECR_REPOSITORY:latest",
+            "",
+            "echo '🛑 Stopping existing container...'",
+            "docker stop $APP_NAME || true",
+            "docker rm $APP_NAME || true",
+            "",
+            "echo '🚀 Starting new container with environment variables...'",
+            "docker run -d \\",
+            "  --name $APP_NAME \\",
+            "  --restart unless-stopped \\",
+            "  -p 8080:8080 \\",
+            "  -e SERVER_PORT=\"$SERVER_PORT\" \\",
+            "  -e SERVER_ADDRESS=\"$SERVER_ADDRESS\" \\",
+            "  -e AWS_REGION=\"$AWS_REGION\" \\",
+            "  -e REKOGNITION_PROJECT_ARN=\"$REKOGNITION_PROJECT_ARN\" \\",
+            "  -e REKOGNITION_MODEL_VERSION=\"$REKOGNITION_MODEL_VERSION\" \\",
+            "  -e REKOGNITION_MIN_CONFIDENCE=\"$REKOGNITION_MIN_CONFIDENCE\" \\",
+            "  -e JWT_SECRET=\"$JWT_SECRET\" \\",
+            "  -e JWT_EXPIRY_HOURS=\"$JWT_EXPIRY_HOURS\" \\",
+            "  -e BEDROCK_MODEL_ID=\"$BEDROCK_MODEL_ID\" \\",
+            "  $ECR_URL/$ECR_REPOSITORY:latest",
+            "",
+            "echo '⏳ Waiting for container to be ready...'",
+            "sleep 5",
+            "",
+            "echo '✅ Checking container status...'",
+            "docker ps --filter name=$APP_NAME",
+            "",
+            "echo '🔍 Verifying deployment...'",
+            "MAX_RETRIES=12",
+            "RETRY_INTERVAL=5",
+            "RETRY_COUNT=0",
+            "",
+            "while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do",
+            "  if ! docker ps --filter name=$APP_NAME --filter status=running | grep -q $APP_NAME; then",
+            "    echo '❌ Container is not running!'",
+            "    echo '📋 Container logs:'",
+            "    docker logs --tail 50 $APP_NAME || true",
+            "    exit 1",
+            "  fi",
+            "",
+            "  if curl -sf http://localhost:8080/health > /dev/null 2>&1; then",
+            "    echo '✅ Health check passed! Deployment successful.'",
+            "    break",
+            "  fi",
+            "",
+            "  RETRY_COUNT=$((RETRY_COUNT + 1))",
+            "  if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then",
+            "    echo '❌ Health check failed after $MAX_RETRIES attempts!'",
+            "    echo '📋 Container logs:'",
+            "    docker logs --tail 50 $APP_NAME || true",
+            "    exit 1",
+            "  fi",
+            "",
+            "  echo \"⏳ Waiting for app to be ready... (attempt $RETRY_COUNT/$MAX_RETRIES)\"",
+            "  sleep $RETRY_INTERVAL",
+            "done",
+            "",
+            "echo '📋 Container logs (last 20 lines)...'",
+            "docker logs --tail 20 $APP_NAME || true",
+            "",
+            "echo '🧹 Cleaning up old images...'",
+            "docker image prune -f",
+            "",
+            "echo '🎉 Deployment completed successfully!'"
+          ]
+        }
+      }
+    ]
+  })
+}
+
 # OIDC Provider for GitHub Actions (use existing provider)
 data "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
@@ -158,7 +314,7 @@ resource "aws_iam_role_policy" "github_actions_policy" {
         ]
         Resource = [
           "arn:aws:ssm:${var.aws_region}::document/AWS-RunShellScript",
-          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:document/${module.ec2_instance.ssm_document_name}",
+          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:document/${module.ssm.ssm_document_name}",
           module.ec2_instance.instance_arn
         ]
       },

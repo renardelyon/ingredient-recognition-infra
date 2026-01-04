@@ -18,7 +18,6 @@ output "private_ip" {
   value       = aws_instance.app.private_ip
 }
 
-output "ssm_document_name" {
-  description = "Name of the SSM document for deployment"
-  value       = aws_ssm_document.deploy_app.name
+output "ec2_role_name" {
+  value = aws_iam_role.ec2_role.name
 }

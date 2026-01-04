@@ -10,17 +10,12 @@ output "ec2_instance_id" {
 
 output "ssm_document_name" {
   description = "Name of the SSM document for deployment"
-  value       = module.ec2_instance.ssm_document_name
+  value       = module.ssm.ssm_document_name
 }
 
 output "ec2_public_ip" {
   description = "Public IP of the EC2 instance"
   value       = module.ec2_instance.public_ip
-}
-
-output "app_url" {
-  description = "Application URL"
-  value       = var.enable_nginx_ssl && var.domain_name != null ? "https://${var.domain_name}" : "http://${module.ec2_instance.public_ip}:${var.app_port}"
 }
 
 output "api_endpoint" {
