@@ -33,6 +33,78 @@ data "aws_subnets" "default" {
   }
 }
 
+locals {
+  iam_policies = {
+    ecr = {
+      policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+          {
+            Effect = "Allow"
+            Action = [
+              "ecr:GetAuthorizationToken",
+              "ecr:BatchCheckLayerAvailability",
+              "ecr:GetDownloadUrlForLayer",
+              "ecr:BatchGetImage"
+            ]
+            Resource = "*"
+          }
+        ]
+      })
+    }
+    bedrock-rekognition = {
+      policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+          {
+            Effect = "Allow"
+            Action = [
+              "bedrock:InvokeModel",
+              "bedrock:InvokeModelWithResponseStream"
+            ]
+            Resource = "*"
+          },
+          {
+            Effect = "Allow"
+            Action = [
+              "rekognition:DetectLabels",
+              "rekognition:DetectText",
+              "rekognition:RecognizeCelebrities",
+              "rekognition:DetectFaces"
+            ]
+            Resource = "*"
+          }
+        ]
+      })
+    }
+    dynamodb = {
+      policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+          {
+            Effect = "Allow"
+            Action = [
+              "dynamodb:PutItem",
+              "dynamodb:GetItem",
+              "dynamodb:UpdateItem",
+              "dynamodb:DeleteItem",
+              "dynamodb:Query",
+              "dynamodb:Scan",
+              "dynamodb:BatchGetItem",
+              "dynamodb:BatchWriteItem"
+            ]
+            Resource = [
+              module.dynamodb.aws_dynamodb_table_arn,
+              "${module.dynamodb.aws_dynamodb_table_arn}/index/*"
+            ]
+          }
+        ]
+      })
+    }
+  }
+}
+
+
 module "aws_ecr" {
   source = "../modules/ecr"
 
@@ -75,7 +147,6 @@ module "ec2_instance" {
   app_port                       = var.app_port
   container_port                 = var.container_port
   aws_caller_identity_account_id = data.aws_caller_identity.current.account_id
-  aws_dynamodb_table_arn         = module.dynamodb.aws_dynamodb_table_arn
   use_elastic_ip                 = true
   instance_type                  = "t3.micro"
   subnet_id                      = data.aws_subnets.default.ids[0]
@@ -83,6 +154,7 @@ module "ec2_instance" {
     create_key_pair = true
     public_key      = file("~/.ssh/id_ed25519.pub")
   }
+  iam_policies = local.iam_policies
 
   # Nginx + Let's Encrypt
   enable_nginx_ssl  = var.enable_nginx_ssl

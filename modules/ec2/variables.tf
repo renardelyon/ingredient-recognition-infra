@@ -24,13 +24,6 @@ variable "aws_security_group_var" {
   nullable = false
 }
 
-variable "aws_dynamodb_table_arn" {
-  description = "ARN of the DynamoDB table"
-  type        = string
-  nullable    = false
-}
-
-
 variable "keypair_creation_config" {
   description = "Configuration for keypair creation"
   type = object({
@@ -98,4 +91,13 @@ variable "letsencrypt_email" {
   description = "Email for Let's Encrypt certificate"
   type        = string
   default     = null
+}
+
+variable "iam_policies" {
+  description = "Map of IAM policies to attach to the EC2 role"
+  type = map(object({
+    policy = string
+  }))
+  default  = {}
+  nullable = true
 }

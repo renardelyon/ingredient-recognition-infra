@@ -93,85 +93,13 @@ resource "aws_iam_role" "ec2_role" {
   }
 }
 
-# IAM Policy for ECR access
-resource "aws_iam_role_policy" "ecr_access" {
-  name = "${var.app_name}-ecr-policy"
-  role = aws_iam_role.ec2_role.id
+resource "aws_iam_role_policy" "custom_policies" {
+  for_each = var.iam_policies
 
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "ecr:GetAuthorizationToken",
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:BatchGetImage"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}
+  name = "${var.app_name}-${each.key}-policy"
+  role = aws_iam_role.ec2_role.name
 
-# IAM Policy for Bedrock and Rekognition
-resource "aws_iam_role_policy" "bedrock_rekognition" {
-  name = "${var.app_name}-bedrock-rekognition-policy"
-  role = aws_iam_role.ec2_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "bedrock:InvokeModel",
-          "bedrock:InvokeModelWithResponseStream"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "rekognition:DetectLabels",
-          "rekognition:DetectText",
-          "rekognition:RecognizeCelebrities",
-          "rekognition:DetectFaces"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}
-
-# IAM Policy for DynamoDB access
-resource "aws_iam_role_policy" "dynamodb_access" {
-  name = "${var.app_name}-dynamodb-policy"
-  role = aws_iam_role.ec2_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "dynamodb:PutItem",
-          "dynamodb:GetItem",
-          "dynamodb:UpdateItem",
-          "dynamodb:DeleteItem",
-          "dynamodb:Query",
-          "dynamodb:Scan",
-          "dynamodb:BatchGetItem",
-          "dynamodb:BatchWriteItem"
-        ]
-        Resource = [
-          var.aws_dynamodb_table_arn,
-          "${var.aws_dynamodb_table_arn}/index/*"
-        ]
-      }
-    ]
-  })
+  policy = each.value.policy
 }
 
 # Instance Profile
