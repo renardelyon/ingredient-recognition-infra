@@ -196,8 +196,8 @@ resource "aws_iam_role_policy_attachment" "attach_rekognition_management" {
 resource "aws_cloudwatch_event_rule" "lambda_schedule" {
   name                = "ingredients-recognition-trigger"
   description         = "Triggers the recognition Lambda on a schedule"
-  schedule_expression = "rate(5 minutes)"
-  state               = "DISABLED" # Change to DISABLED to turn off
+  schedule_expression = "rate(60 minutes)"
+  state               = "ENABLED" # Change to DISABLED to turn off
 }
 
 # 2. Set the Target (Point the Rule to your Lambda)

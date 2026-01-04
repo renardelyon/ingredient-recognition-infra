@@ -31,9 +31,9 @@ variable "enable_nginx_ssl" {
 }
 
 variable "domain_name" {
-  description = "Domain name for Let's Encrypt certificate (e.g., yourapp.duckdns.org)"
+  description = "Domain name for Let's Encrypt certificate (e.g., yourapp.mooo.com)"
   type        = string
-  default     = "https://recipe-recommendation-renard-elyon.duckdns.org"
+  default     = "https://recipe-recommendation-renard-elyon.mooo.com"
 }
 
 variable "letsencrypt_email" {
