@@ -202,7 +202,8 @@ resource "aws_instance" "app" {
   iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
   subnet_id              = var.subnet_id
 
-  user_data = base64encode(local.user_data)
+  user_data                   = base64encode(local.user_data)
+  user_data_replace_on_change = true
 
   root_block_device {
     volume_size = 30
