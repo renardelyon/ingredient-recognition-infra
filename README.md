@@ -1,46 +1,68 @@
 # Ingredients Backend Terraform
 
-This Terraform configuration provisions AWS infrastructure for the Ingredients Recognition backend application, including ECR repositories, Lambda functions, and CI/CD integration with GitHub Actions.
+This Terraform configuration provisions AWS infrastructure for the Ingredients Recognition application, including backend and frontend deployments on EC2, Lambda functions for auto-off Rekognition, DynamoDB tables, and container registries.
 
 ## Overview
 
-This infrastructure provides:
+This infrastructure provides three main components:
+
+### 1. Backend Application (`ingredient-recognition-backend/`)
+- **Amazon ECR** - Container registry for backend application images
+- **EC2 Instance** - Compute instance running the backend application with Docker
+- **DynamoDB Tables** - NoSQL database for Users and Recipes data
+- **IAM Roles & Policies** - Permissions for ECR, Bedrock, Rekognition, and DynamoDB access
+- **Systems Manager (SSM)** - Automated deployment document for application updates
+- **Nginx + Let's Encrypt** - Reverse proxy with automatic SSL certificate management
+- **Elastic IP** - Static IP address for the backend instance
+
+### 2. Frontend Application (`ingredient-recognition-frontend/`)
+- **Amazon ECR** - Container registry for frontend application images
+- **EC2 Instance** - Compute instance running the frontend application with Docker
+- **IAM Roles & Policies** - Permissions for ECR access
+- **Systems Manager (SSM)** - Automated deployment document for application updates
+- **Nginx + Let's Encrypt** - Reverse proxy with automatic SSL certificate management
+- **Elastic IP** - Static IP address for the frontend instance
+
+### 3. Auto-Off Rekognition Lambda (`auto_off_rekognition_lambda/`)
 - **Amazon ECR** - Container registry for Lambda function images
-- **AWS Lambda** - Serverless compute for the recognition application
-- **IAM Roles & Policies** - Secure permissions for Lambda and GitHub Actions
+- **AWS Lambda** - Serverless function to automatically stop Rekognition projects
+- **EventBridge Rules** - Scheduled triggers for Lambda execution
+- **IAM Roles & Policies** - Permissions for Rekognition project management
 - **OIDC Provider** - GitHub Actions integration with AWS using OpenID Connect
 
 ## Prerequisites
 
 - **Terraform** >= 1.2
 - **AWS CLI** configured with appropriate credentials
+- **SSH Key Pair** - Public key at `~/.ssh/id_ed25519.pub` (or modify the path in configs)
 - **AWS Account** with permissions to create:
+  - EC2 instances
   - ECR repositories
+  - DynamoDB tables
   - Lambda functions
   - IAM roles and policies
   - OIDC providers
+  - EventBridge rules
+  - Systems Manager documents
+  - Elastic IPs
 
 ## Usage
 
-### 1. Initialize Terraform
+### Backend Application
 
 ```bash
+cd ingredient-recognition-backend
+
+# Initialize Terraform
 terraform init
-```
 
-### 2. Configure Variables
+# Configure variables (optional - defaults are provided)
+# Create terraform.tfvars:
+# aws_region = "us-east-1"
+# service_name = "ingredients_recognition_backend"
+# domain_name = "https://your-backend-domain.mooo.com"
+# letsencrypt_email = "your-email@example.com"
 
-Create a `terraform.tfvars` file (or use command-line flags):
-
-```hcl
-aws_region  = "us-east-1"
-project_name = "ingredients-recognition-app"
-github_repo  = "owner/repo"  # GitHub repo in owner/repo format
-```
-
-### 3. Plan and Apply
-
-```bash
 # Preview changes
 terraform plan
 
@@ -48,23 +70,42 @@ terraform plan
 terraform apply
 ```
 
-## Variables
+### Frontend Application
 
-| Name | Description | Default |
-|------|-------------|---------|
-| `aws_region` | AWS region | `us-east-1` |
-| `project_name` | Project name (used for resource naming) | `ingredients-recognition-app` |
-| `github_repo` | GitHub repository (format: owner/repo) | `renardelyon/rekognition-lambda` |
+```bash
+cd ingredient-recognition-frontend
 
-## Outputs
+# Initialize Terraform
+terraform init
 
-After applying, Terraform provides:
+# Preview changes
+terraform plan
 
-- `ecr_repository_url` - URL of the ECR repository
-- `ecr_repository_name` - Name of the ECR repository
-- `lambda_function_name` - Name of the Lambda function
-- `lambda_function_role_arn` - ARN of the Lambda execution role
-- `github_actions_role_arn` - ARN of the GitHub Actions role (add to GitHub secrets)
+# Apply configuration
+terraform apply
+```
+
+### Auto-Off Rekognition Lambda
+
+```bash
+cd auto_off_rekognition_lambda
+
+# Initialize Terraform
+terraform init
+
+# Configure variables
+# Create terraform.tfvars:
+# aws_region = "us-east-1"
+# project_name = "ingredients-recognition-app"
+# github_repo = "owner/repo"
+
+# Preview changes
+terraform plan
+
+# Apply configuration
+terraform apply
+```
+
 
 ## Common Commands
 
@@ -78,9 +119,13 @@ terraform validate
 # Format code
 terraform fmt -recursive
 
-# Destroy resources
+# Destroy resources (per environment)
+cd ingredient-recognition-backend
 terraform destroy
 
 # View specific output
-terraform output github_actions_role_arn
+terraform output ecr_repository_url
+
+# Apply changes to specific module
+terraform apply -target=module.dynamodb
 ```
