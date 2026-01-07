@@ -144,6 +144,12 @@ module "dynamodb" {
       hash_key     = "id"
       range_key    = "created_at"
       table_name   = "Recipes"
+      global_secondary_indexes = [
+        {
+          name     = "user_id"
+          hash_key = "UserIdIndex"
+          type     = "S"
+      }]
     }
   ]
 }
