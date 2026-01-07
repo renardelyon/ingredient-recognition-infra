@@ -7,26 +7,24 @@ terraform {
   }
 }
 
-
-# DynamoDB Table
 resource "aws_dynamodb_table" "main" {
-  name         = var.create_dynamodb_config.table_name
-  billing_mode = var.create_dynamodb_config.billing_mode
-  hash_key     = var.create_dynamodb_config.hash_key
-  range_key    = var.create_dynamodb_config.range_key
-
+  count        = length(var.create_dynamodb_config)
+  name         = var.create_dynamodb_config[count.index].table_name
+  billing_mode = var.create_dynamodb_config[count.index].billing_mode
+  hash_key     = var.create_dynamodb_config[count.index].hash_key
+  range_key    = var.create_dynamodb_config[count.index].range_key
   attribute {
-    name = var.create_dynamodb_config.hash_key
+    name = var.create_dynamodb_config[count.index].hash_key
     type = "S"
   }
 
   attribute {
-    name = var.create_dynamodb_config.range_key
+    name = var.create_dynamodb_config[count.index].range_key
     type = "S"
   }
 
   dynamic "attribute" {
-    for_each = var.create_dynamodb_config.global_secondary_indexes
+    for_each = var.create_dynamodb_config[count.index].global_secondary_indexes
     content {
       name = attribute.value.name
       type = "S"
@@ -34,7 +32,7 @@ resource "aws_dynamodb_table" "main" {
   }
 
   dynamic "global_secondary_index" {
-    for_each = var.create_dynamodb_config.global_secondary_indexes
+    for_each = var.create_dynamodb_config[count.index].global_secondary_indexes
     content {
       name            = global_secondary_index.value.hash_key
       hash_key        = global_secondary_index.value.name
@@ -44,7 +42,7 @@ resource "aws_dynamodb_table" "main" {
 
   # Enable point-in-time recovery (recommended for production)
   point_in_time_recovery {
-    enabled = var.create_dynamodb_config.enable_pitr
+    enabled = var.create_dynamodb_config[count.index].enable_pitr
   }
 
   # Enable encryption at rest
@@ -53,6 +51,6 @@ resource "aws_dynamodb_table" "main" {
   }
 
   tags = {
-    Name = var.create_dynamodb_config.table_name
+    Name = var.create_dynamodb_config[count.index].table_name
   }
 }

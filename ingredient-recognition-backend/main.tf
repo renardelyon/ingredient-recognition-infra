@@ -34,6 +34,15 @@ data "aws_subnets" "default" {
 }
 
 locals {
+  tables_arns = [
+    for table in module.dynamodb.aws_dynamodb_table :
+    table.arn
+  ]
+
+  table_arn_paths = [
+    for table in module.dynamodb.aws_dynamodb_table :
+    "${table.arn}/index/*"
+  ]
   iam_policies = {
     ecr = {
       policy = jsonencode({
@@ -93,10 +102,7 @@ locals {
               "dynamodb:BatchGetItem",
               "dynamodb:BatchWriteItem"
             ]
-            Resource = [
-              module.dynamodb.aws_dynamodb_table_arn,
-              "${module.dynamodb.aws_dynamodb_table_arn}/index/*"
-            ]
+            Resource = concat(local.tables_arns, local.table_arn_paths)
           }
         ]
       })
@@ -118,19 +124,28 @@ module "aws_ecr" {
 module "dynamodb" {
   source = "../modules/dynamodb"
 
-  create_dynamodb_config = {
-    billing_mode = "PAY_PER_REQUEST"
-    enable_pitr  = false
-    hash_key     = "id"
-    range_key    = "created_at"
-    table_name   = "Users"
-    global_secondary_indexes = [
-      {
-        name     = "email"
-        hash_key = "EmailIndex"
-        type     = "S"
-    }]
-  }
+  create_dynamodb_config = [
+    {
+      billing_mode = "PAY_PER_REQUEST"
+      enable_pitr  = false
+      hash_key     = "id"
+      range_key    = "created_at"
+      table_name   = "Users"
+      global_secondary_indexes = [
+        {
+          name     = "email"
+          hash_key = "EmailIndex"
+          type     = "S"
+      }]
+    },
+    {
+      billing_mode = "PAY_PER_REQUEST"
+      enable_pitr  = false
+      hash_key     = "id"
+      range_key    = "created_at"
+      table_name   = "Recipes"
+    }
+  ]
 }
 
 module "ec2_instance" {
